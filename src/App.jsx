@@ -1,6 +1,5 @@
 // App.js
 import React from "react";
-import PolynomialGraph from "./PolynomialGraph";
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import GpsLocationComponent from './GpsLocationComponent';
 import MapList from "./MapList.jsx";
@@ -10,7 +9,6 @@ function App() {
     return (
         <Router>
             <Routes>
-                <Route path="/root" element={<PolynomialGraph />} />
                 <Route path="/gps-locations" element={<GpsLocationComponent />} />
                 <Route path="/" element={<MapList />} />
                 <Route path="/map/:id" element={<EmptyPage />} />
