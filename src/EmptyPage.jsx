@@ -10,7 +10,11 @@ const EmptyPage = () => {
     const { id } = useParams();
     const [mapDetails, setMapDetails] = useState(null);
     const [locations, setLocations] = useState({});
-    const [busStop, setBusStops] = useState({});
+    const [highlightedBusStopX, setHighlightedBusStopX] = useState(null);
+    const [expectedTime, setExpectedTime] = useState(null);
+    const [estimatedTime, setEstimatedTime] = useState(null);
+
+    const INTERVAL_TIMEOUT = 500;
 
     useEffect(() => {
         const fetchMapDetails = async () => {
@@ -36,7 +40,7 @@ const EmptyPage = () => {
         };
 
         fetchGpsLocations();
-        const intervalId = setInterval(fetchGpsLocations, 500);
+        const intervalId = setInterval(fetchGpsLocations, INTERVAL_TIMEOUT);
 
         return () => clearInterval(intervalId);
     }, [id]);
@@ -45,7 +49,8 @@ const EmptyPage = () => {
         const fetchBusStops = async () => {
             try {
                 const response = await axios.get(`http://localhost:8080/bus-stops/${id}`);
-                setBusStops(response.data);
+                setHighlightedBusStopX(response.data.id.xcoordinate);
+                setExpectedTime(response.data.secondsFromStart);
             } catch (error) {
                 console.error('Error fetching GPS locations:', error);
             }
@@ -53,6 +58,23 @@ const EmptyPage = () => {
 
         fetchBusStops();
 
+    }, [id]);
+
+    useEffect(() => {
+        const fetchEstArrival = async () => {
+            try {
+                const response = await axios.get(`http://localhost:8080/est-arrival/dl435`);
+                setEstimatedTime(response.data);
+
+            } catch (error) {
+                console.error('Error fetching GPS locations:', error);
+            }
+        };
+
+        fetchEstArrival();
+        const intervalId = setInterval(fetchEstArrival, INTERVAL_TIMEOUT);
+
+        return () => clearInterval(intervalId);
     }, [id]);
 
     const calculatePolynomial = (x) => {
@@ -75,13 +97,6 @@ const EmptyPage = () => {
             return { highlightedX, highlightedY };
         });
 
-        // const highlightedBusStops = Object.values(busStops).map((busStop) => {
-        //     const highlightedBusStopX = busStop.x;
-        //     const highlightedBusStopY = calculatePolynomial(highlightedBusStopX);
-        //     return { highlightedBusStopX, highlightedBusStopY };
-        // });
-
-        const highlightedBusStopX = busStop;
         const highlightedBusStopY = calculatePolynomial(highlightedBusStopX);
 
         const colors = [
@@ -149,8 +164,19 @@ const EmptyPage = () => {
 
     return (
         <div>
-            <div style={{ width: "1000px", height: "600px" }}>
-                <Line data={generateChartData()} options={chartOptions} />
+            <div style={{width: "1000px", height: "600px"}}>
+                <Line data={generateChartData()} options={chartOptions}/>
+            </div>
+            <div>
+                <h1>GPS Locations</h1>
+                <ul>
+                    <li>
+                        <strong>Expected time:</strong> {expectedTime} <br/>
+                    </li>
+                    <li>
+                        <strong>Estimated time:</strong> {estimatedTime} <br/>
+                    </li>
+                </ul>
             </div>
         </div>
     );
