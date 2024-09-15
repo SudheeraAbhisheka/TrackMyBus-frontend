@@ -11,7 +11,7 @@ function App() {
             <Routes>
                 <Route path="/gps-locations" element={<GpsLocationComponent />} />
                 <Route path="/" element={<MapList />} />
-                <Route path="/map/:id" element={<EmptyPage />} />
+                <Route path="/map/:map_id" element={<EmptyPage />} />
             </Routes>
         </Router>
     );

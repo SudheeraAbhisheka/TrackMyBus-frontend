@@ -7,7 +7,7 @@ import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
 const EmptyPage = () => {
-    const { id } = useParams();
+    const { map_id } = useParams();
     const [mapDetails, setMapDetails] = useState(null);
     const [locations, setLocations] = useState({});
     const [highlightedBusStopX, setHighlightedBusStopX] = useState(null);
@@ -19,7 +19,7 @@ const EmptyPage = () => {
     useEffect(() => {
         const fetchMapDetails = async () => {
             try {
-                const response = await axios.get(`http://localhost:8080/map/${id}`);
+                const response = await axios.get(`http://localhost:8080/map/${map_id}`);
                 setMapDetails(response.data);
             } catch (error) {
                 console.error('Error fetching map details:', error);
@@ -27,12 +27,12 @@ const EmptyPage = () => {
         };
 
         fetchMapDetails();
-    }, [id]);
+    }, [map_id]);
 
     useEffect(() => {
         const fetchGpsLocations = async () => {
             try {
-                const response = await axios.get(`http://localhost:8080/gps-location/${id}`);
+                const response = await axios.get(`http://localhost:8080/gps-location/${map_id}`);
                 setLocations(response.data);
             } catch (error) {
                 console.error('Error fetching GPS locations:', error);
@@ -43,12 +43,12 @@ const EmptyPage = () => {
         const intervalId = setInterval(fetchGpsLocations, INTERVAL_TIMEOUT);
 
         return () => clearInterval(intervalId);
-    }, [id]);
+    }, [map_id]);
 
     useEffect(() => {
         const fetchBusStops = async () => {
             try {
-                const response = await axios.get(`http://localhost:8080/bus-stops/${id}`);
+                const response = await axios.get(`http://localhost:8080/bus-stops/${map_id}`);
                 setHighlightedBusStopX(response.data.id.xcoordinate);
                 setExpectedTime(response.data.secondsFromStart);
             } catch (error) {
@@ -58,16 +58,26 @@ const EmptyPage = () => {
 
         fetchBusStops();
 
-    }, [id]);
+    }, [map_id]);
 
     useEffect(() => {
         const fetchEstArrival = async () => {
             try {
-                const response = await axios.get(`http://localhost:8080/est-arrival/dl435`);
-                setEstimatedTime(response.data);
+                // Create an object to store estimated arrival times for multiple buses
+                const estimatedTimes = {};
+
+                // Loop through the locations to get bus IDs and fetch the arrival time for each
+                for (const busId in locations) {
+                    if (Object.prototype.hasOwnProperty.call(locations, busId)) {
+                        const response = await axios.get(`http://localhost:8080/est-arrival/${busId}`);
+                        estimatedTimes[busId] = response.data;
+                    }
+                }
+
+                setEstimatedTime(estimatedTimes); // Update state with estimated times for all buses
 
             } catch (error) {
-                console.error('Error fetching GPS locations:', error);
+                console.error('Error fetching estimated arrival times:', error);
             }
         };
 
@@ -75,7 +85,19 @@ const EmptyPage = () => {
         const intervalId = setInterval(fetchEstArrival, INTERVAL_TIMEOUT);
 
         return () => clearInterval(intervalId);
-    }, [id]);
+    }, [locations]); // Depend on locations to re-fetch when they change
+
+
+
+    const handleRestart = async () => {
+        try {
+            await axios.post('http://localhost:8080/restart');
+            alert('GPS tracking restarted');
+        } catch (error) {
+            console.error('Error restarting GPS tracking:', error);
+            alert('Failed to restart GPS tracking');
+        }
+    };
 
     const calculatePolynomial = (x) => {
         if (!mapDetails) return 0;
@@ -170,13 +192,17 @@ const EmptyPage = () => {
             <div>
                 <h1>GPS Locations</h1>
                 <ul>
-                    <li>
-                        <strong>Expected time:</strong> {expectedTime} <br/>
-                    </li>
-                    <li>
-                        <strong>Estimated time:</strong> {estimatedTime} <br/>
-                    </li>
+                    <li><strong>Expected time:</strong> {expectedTime} <br/></li>
+                    {Object.keys(estimatedTime || {}).map(busId => (
+                        <li key={busId}>
+                            <strong>Bus {busId} estimated time:</strong> {estimatedTime[busId]} <br/>
+                        </li>
+                    ))}
                 </ul>
+            </div>
+
+            <div>
+                <button onClick={handleRestart}>Restart GPS Tracking</button>
             </div>
         </div>
     );
