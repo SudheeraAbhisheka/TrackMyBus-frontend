@@ -13,6 +13,8 @@ const EmptyPage = () => {
     const [highlightedBusStopX, setHighlightedBusStopX] = useState(null);
     const [expectedTime, setExpectedTime] = useState(null);
     const [estimatedTime, setEstimatedTime] = useState(null);
+    const [busStops, setBusStops] = useState([]);
+    const [selectedBusStop, setSelectedBusStop] = useState(null); // New state for selected bus stop
 
     const INTERVAL_TIMEOUT = 500;
 
@@ -49,33 +51,42 @@ const EmptyPage = () => {
         const fetchBusStops = async () => {
             try {
                 const response = await axios.get(`http://localhost:8080/bus-stops/${map_id}`);
-                setHighlightedBusStopX(response.data.id.xcoordinate);
-                setExpectedTime(response.data.secondsFromStart);
+                setBusStops(response.data);
+
+                if (response.data.length > 0) {
+                    setSelectedBusStop(response.data[1]);
+                } else {
+                    console.warn('No bus stops found for this map_id.');
+                }
             } catch (error) {
-                console.error('Error fetching GPS locations:', error);
+                console.error('Error fetching bus stops:', error);
             }
         };
 
         fetchBusStops();
-
     }, [map_id]);
 
     useEffect(() => {
+        if (selectedBusStop) {
+            // Update highlighted bus stop and expected time when bus stop is selected
+            setHighlightedBusStopX(selectedBusStop.id.xcoordinate);
+            setExpectedTime(selectedBusStop.secondsFromStart);
+        }
+    }, [selectedBusStop]);
+
+    useEffect(() =>
+    {
         const fetchEstArrival = async () => {
             try {
-                // Create an object to store estimated arrival times for multiple buses
                 const estimatedTimes = {};
-
-                // Loop through the locations to get bus IDs and fetch the arrival time for each
-                for (const busId in locations) {
-                    if (Object.prototype.hasOwnProperty.call(locations, busId)) {
-                        const response = await axios.get(`http://localhost:8080/est-arrival/${busId}`);
+                for (const sessionId in locations) {
+                    if (Object.prototype.hasOwnProperty.call(locations, sessionId)) {
+                        const busId = locations[sessionId].busId;
+                        const response = await axios.get(`http://localhost:8080/est-arrival/${sessionId}`);
                         estimatedTimes[busId] = response.data;
                     }
                 }
-
-                setEstimatedTime(estimatedTimes); // Update state with estimated times for all buses
-
+                setEstimatedTime(estimatedTimes);
             } catch (error) {
                 console.error('Error fetching estimated arrival times:', error);
             }
@@ -85,9 +96,7 @@ const EmptyPage = () => {
         const intervalId = setInterval(fetchEstArrival, INTERVAL_TIMEOUT);
 
         return () => clearInterval(intervalId);
-    }, [locations]); // Depend on locations to re-fetch when they change
-
-
+    }, [locations]);
 
     const handleRestart = async () => {
         try {
@@ -122,12 +131,12 @@ const EmptyPage = () => {
         const highlightedBusStopY = calculatePolynomial(highlightedBusStopX);
 
         const colors = [
-            "rgba(255, 99, 132, 1)",   // Red
-            "rgba(54, 162, 235, 1)",   // Blue
-            "rgba(255, 206, 86, 1)",   // Yellow
-            "rgba(75, 192, 192, 1)",   // Green
-            "rgba(153, 102, 255, 1)",  // Purple
-            "rgba(255, 159, 64, 1)",   // Orange
+            "rgba(255, 99, 132, 1)",
+            "rgba(54, 162, 235, 1)",
+            "rgba(255, 206, 86, 1)",
+            "rgba(75, 192, 192, 1)",
+            "rgba(153, 102, 255, 1)",
+            "rgba(255, 159, 64, 1)",
         ];
 
         const datasets = [
@@ -141,7 +150,7 @@ const EmptyPage = () => {
             ...highlightedPoints.map((point, index) => ({
                 label: `Highlight at x = ${point.highlightedX}`,
                 data: xValues.map((x) => (x === point.highlightedX ? point.highlightedY : null)),
-                borderColor: colors[index % colors.length], // Cycle through the color array
+                borderColor: colors[index % colors.length],
                 backgroundColor: colors[index % colors.length],
                 pointRadius: 6,
                 pointHoverRadius: 8,
@@ -154,7 +163,7 @@ const EmptyPage = () => {
                 backgroundColor: "rgb(48,214,33)",
                 pointRadius: 12,
                 pointHoverRadius: 16,
-                showLine: false, // Only show the point, not a line
+                showLine: false,
             },
         ];
 
@@ -180,6 +189,17 @@ const EmptyPage = () => {
         animation: { duration: 0 },
     };
 
+    const handleBusStopChange = (event) => {
+        const selectedId = event.target.value;
+        const selectedStop = busStops.find((stop) => serializeId(stop.id) === selectedId);
+        setSelectedBusStop(selectedStop);
+    };
+
+// Function to serialize the composite ID into a string
+    const serializeId = (id) => {
+        return `${id.xcoordinate}-${id.ycoordinate}`; // Adjust based on the actual structure of your composite ID
+    };
+
     if (!mapDetails) {
         return <div>Loading...</div>;
     }
@@ -189,13 +209,26 @@ const EmptyPage = () => {
             <div style={{width: "1000px", height: "600px"}}>
                 <Line data={generateChartData()} options={chartOptions}/>
             </div>
+
+            <div>
+                <label>Select Bus Stop: </label>
+                <select onChange={handleBusStopChange} value={selectedBusStop ? serializeId(selectedBusStop.id) : ''}>
+                    {busStops.map((stop) => (
+                        <option key={serializeId(stop.id)} value={serializeId(stop.id)}>
+                            Bus Stop {stop.id.xcoordinate}
+                        </option>
+                    ))}
+                </select>
+            </div>
+
+
             <div>
                 <h1>GPS Locations</h1>
                 <ul>
                     <li><strong>Expected time:</strong> {expectedTime} <br/></li>
-                    {Object.keys(estimatedTime || {}).map(busId => (
-                        <li key={busId}>
-                            <strong>Bus {busId} estimated time:</strong> {estimatedTime[busId]} <br/>
+                    {Object.keys(estimatedTime || {}).map((map_id) => (
+                        <li key={map_id}>
+                            <strong>Bus {map_id} estimated time:</strong> {estimatedTime[map_id]} <br/>
                         </li>
                     ))}
                 </ul>
