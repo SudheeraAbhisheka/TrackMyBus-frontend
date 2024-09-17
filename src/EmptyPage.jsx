@@ -53,11 +53,11 @@ const EmptyPage = () => {
                 const response = await axios.get(`http://localhost:8080/bus-stops/${map_id}`);
                 setBusStops(response.data);
 
-                if (response.data.length > 0) {
-                    setSelectedBusStop(response.data[1]);
-                } else {
-                    console.warn('No bus stops found for this map_id.');
-                }
+                // if (response.data.length > 0) {
+                //     setSelectedBusStop(response.data[1]);
+                // } else {
+                //     console.warn('No bus stops found for this map_id.');
+                // }
             } catch (error) {
                 console.error('Error fetching bus stops:', error);
             }
@@ -74,29 +74,28 @@ const EmptyPage = () => {
         }
     }, [selectedBusStop]);
 
-    useEffect(() =>
-    {
+
+    useEffect(() => {
         const fetchEstArrival = async () => {
+            if (!selectedBusStop) {
+                return; // Do nothing if no bus stop is selected
+            }
+
             try {
-                const estimatedTimes = {};
-                for (const sessionId in locations) {
-                    if (Object.prototype.hasOwnProperty.call(locations, sessionId)) {
-                        const busId = locations[sessionId].busId;
-                        const response = await axios.get(`http://localhost:8080/est-arrival/${sessionId}`);
-                        estimatedTimes[busId] = response.data;
-                    }
-                }
-                setEstimatedTime(estimatedTimes);
+                const { xcoordinate } = selectedBusStop.id.xcoordinate; // Get the selected bus stop's xcoordinate
+                const response = await axios.get(`http://localhost:8080/est-arrival/${selectedBusStop.id.xcoordinate}`);
+                setEstimatedTime(response.data);
             } catch (error) {
                 console.error('Error fetching estimated arrival times:', error);
             }
         };
 
-        fetchEstArrival();
-        const intervalId = setInterval(fetchEstArrival, INTERVAL_TIMEOUT);
+        fetchEstArrival(); // Fetch the data when a bus stop is selected
+        const intervalId = setInterval(fetchEstArrival, INTERVAL_TIMEOUT); // Set an interval for fetching updates
 
-        return () => clearInterval(intervalId);
-    }, [locations]);
+        return () => clearInterval(intervalId); // Clean up the interval on unmount
+    }, [selectedBusStop]); // Re-run the effect only when selectedBusStop changes
+
 
     const handleRestart = async () => {
         try {
@@ -213,6 +212,7 @@ const EmptyPage = () => {
             <div>
                 <label>Select Bus Stop: </label>
                 <select onChange={handleBusStopChange} value={selectedBusStop ? serializeId(selectedBusStop.id) : ''}>
+                    <option value="" disabled>Select a bus stop</option>
                     {busStops.map((stop) => (
                         <option key={serializeId(stop.id)} value={serializeId(stop.id)}>
                             Bus Stop {stop.id.xcoordinate}
@@ -226,13 +226,14 @@ const EmptyPage = () => {
                 <h1>GPS Locations</h1>
                 <ul>
                     <li><strong>Expected time:</strong> {expectedTime} <br/></li>
-                    {Object.keys(estimatedTime || {}).map((map_id) => (
-                        <li key={map_id}>
-                            <strong>Bus {map_id} estimated time:</strong> {estimatedTime[map_id]} <br/>
+                    {estimatedTime && Object.entries(estimatedTime).map(([busId, time]) => (
+                        <li key={busId}>
+                            <strong>Bus {busId} estimated time:</strong> {time.toFixed(2)} seconds<br/>
                         </li>
                     ))}
                 </ul>
             </div>
+
 
             <div>
                 <button onClick={handleRestart}>Restart GPS Tracking</button>
