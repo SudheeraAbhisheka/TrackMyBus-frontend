@@ -14,7 +14,27 @@ const EmptyPage = () => {
     const [expectedTime, setExpectedTime] = useState(null);
     const [estimatedTime, setEstimatedTime] = useState(null);
     const [busStops, setBusStops] = useState([]);
-    const [selectedBusStop, setSelectedBusStop] = useState(null); // New state for selected bus stop
+    const [selectedBusStop, setSelectedBusStop] = useState(null);
+    const [stringS, setStringS] = useState('');
+    const [messages, setMessages] = useState([]);
+
+    useEffect(() => {
+        const eventSource = new EventSource("http://localhost:8080/notify-delay");
+
+        eventSource.onmessage = function (event) {
+            const delayedObject = JSON.parse(event.data);
+            console.log(delayedObject); // Use this data to update your UI
+        };
+
+        eventSource.onerror = function (err) {
+            console.error("EventSource failed:", err);
+            eventSource.close();
+        };
+
+        return () => {
+            eventSource.close();
+        };
+    }, []);
 
     const INTERVAL_TIMEOUT = 500;
 
@@ -53,11 +73,6 @@ const EmptyPage = () => {
                 const response = await axios.get(`http://localhost:8080/bus-stops/${map_id}`);
                 setBusStops(response.data);
 
-                // if (response.data.length > 0) {
-                //     setSelectedBusStop(response.data[1]);
-                // } else {
-                //     console.warn('No bus stops found for this map_id.');
-                // }
             } catch (error) {
                 console.error('Error fetching bus stops:', error);
             }
@@ -68,9 +83,8 @@ const EmptyPage = () => {
 
     useEffect(() => {
         if (selectedBusStop) {
-            // Update highlighted bus stop and expected time when bus stop is selected
             setHighlightedBusStopX(selectedBusStop.id.xcoordinate);
-            setExpectedTime(selectedBusStop.secondsFromStart);
+            setExpectedTime(selectedBusStop.expectedTime);
         }
     }, [selectedBusStop]);
 
@@ -82,7 +96,6 @@ const EmptyPage = () => {
             }
 
             try {
-                const { xcoordinate } = selectedBusStop.id.xcoordinate; // Get the selected bus stop's xcoordinate
                 const response = await axios.get(`http://localhost:8080/est-arrival/${selectedBusStop.id.xcoordinate}`);
                 setEstimatedTime(response.data);
             } catch (error) {
@@ -95,6 +108,44 @@ const EmptyPage = () => {
 
         return () => clearInterval(intervalId); // Clean up the interval on unmount
     }, [selectedBusStop]); // Re-run the effect only when selectedBusStop changes
+
+    // useEffect(() => {
+    //     const recieveStringS = async () => {
+    //         try {
+    //             const response = await axios.get(`http://localhost:8080/send-string`);
+    //             // setStringS(response.data); // Update the state with the received string
+    //             console.log(response.data);
+    //         } catch (error) {
+    //             console.error('Error fetching string s:', error);
+    //         }
+    //     };
+    //
+    //     recieveStringS();
+    // }, []);
+
+    useEffect(() => {
+        // Create a new EventSource to handle the SSE connection
+        const eventSource = new EventSource('http://localhost:8080/send-string');
+
+        // Handle incoming messages
+        eventSource.onmessage = (event) => {
+            console.log('Received message:', event.data);
+            setMessages((prevMessages) => [...prevMessages, event.data]);
+        };
+
+        // Handle any errors in the SSE connection
+        eventSource.onerror = (error) => {
+            console.error('Error with SSE connection:', error);
+            eventSource.close(); // Close the connection on error
+        };
+
+        // Clean up the EventSource when the component unmounts
+        return () => {
+            eventSource.close();
+        };
+    }, []);
+
+
 
 
     const handleRestart = async () => {
@@ -205,6 +256,15 @@ const EmptyPage = () => {
 
     return (
         <div>
+            <div>
+                <h1>Received Messages:</h1>
+                <ul>
+                    {messages.map((message, index) => (
+                        <li key={index}>{message}</li>
+                    ))}
+                </ul>
+            </div>
+
             <div style={{width: "1000px", height: "600px"}}>
                 <Line data={generateChartData()} options={chartOptions}/>
             </div>
