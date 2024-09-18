@@ -15,8 +15,7 @@ const EmptyPage = () => {
     const [estimatedTime, setEstimatedTime] = useState(null);
     const [busStops, setBusStops] = useState([]);
     const [selectedBusStop, setSelectedBusStop] = useState(null);
-    const [stringS, setStringS] = useState('');
-    const [messages, setMessages] = useState([]);
+    const [delayedObjects, setDelayedObjects] = useState([]);
 
     useEffect(() => {
         const eventSource = new EventSource("http://localhost:8080/notify-delay");
@@ -24,6 +23,17 @@ const EmptyPage = () => {
         eventSource.onmessage = function (event) {
             const delayedObject = JSON.parse(event.data);
             console.log(delayedObject); // Use this data to update your UI
+
+            setDelayedObjects(prevObjects => {
+                const newObjects = [...prevObjects, delayedObject];
+                // Remove the delayed object after 5 seconds
+                setTimeout(() => {
+                    setDelayedObjects(currentObjects =>
+                        currentObjects.filter(obj => obj !== delayedObject)
+                    );
+                }, 3000);
+                return newObjects;
+            });
         };
 
         eventSource.onerror = function (err) {
@@ -109,49 +119,11 @@ const EmptyPage = () => {
         return () => clearInterval(intervalId); // Clean up the interval on unmount
     }, [selectedBusStop]); // Re-run the effect only when selectedBusStop changes
 
-    // useEffect(() => {
-    //     const recieveStringS = async () => {
-    //         try {
-    //             const response = await axios.get(`http://localhost:8080/send-string`);
-    //             // setStringS(response.data); // Update the state with the received string
-    //             console.log(response.data);
-    //         } catch (error) {
-    //             console.error('Error fetching string s:', error);
-    //         }
-    //     };
-    //
-    //     recieveStringS();
-    // }, []);
-
-    useEffect(() => {
-        // Create a new EventSource to handle the SSE connection
-        const eventSource = new EventSource('http://localhost:8080/send-string');
-
-        // Handle incoming messages
-        eventSource.onmessage = (event) => {
-            console.log('Received message:', event.data);
-            setMessages((prevMessages) => [...prevMessages, event.data]);
-        };
-
-        // Handle any errors in the SSE connection
-        eventSource.onerror = (error) => {
-            console.error('Error with SSE connection:', error);
-            eventSource.close(); // Close the connection on error
-        };
-
-        // Clean up the EventSource when the component unmounts
-        return () => {
-            eventSource.close();
-        };
-    }, []);
-
-
-
 
     const handleRestart = async () => {
         try {
             await axios.post('http://localhost:8080/restart');
-            alert('GPS tracking restarted');
+            console.log('GPS tracking restarted');
         } catch (error) {
             console.error('Error restarting GPS tracking:', error);
             alert('Failed to restart GPS tracking');
@@ -256,14 +228,18 @@ const EmptyPage = () => {
 
     return (
         <div>
-            <div>
-                <h1>Received Messages:</h1>
-                <ul>
-                    {messages.map((message, index) => (
-                        <li key={index}>{message}</li>
+
+            {delayedObjects.length > 0 && (
+                <div className="notification">
+                    <h3>Bus Delay Information</h3>
+                    {delayedObjects.map((obj, index) => (
+                        <div key={index}>
+                            <p>Session: {obj.session}</p>
+                            <p>Expected in Next: {obj.expectedInNext} seconds</p>
+                        </div>
                     ))}
-                </ul>
-            </div>
+                </div>
+            )}
 
             <div style={{width: "1000px", height: "600px"}}>
                 <Line data={generateChartData()} options={chartOptions}/>
@@ -298,6 +274,7 @@ const EmptyPage = () => {
             <div>
                 <button onClick={handleRestart}>Restart GPS Tracking</button>
             </div>
+
         </div>
     );
 };
