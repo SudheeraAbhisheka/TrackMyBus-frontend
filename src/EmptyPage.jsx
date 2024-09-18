@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import {useNavigate, useParams} from 'react-router-dom';
 import axios from 'axios';
 import { Line } from "react-chartjs-2";
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from "chart.js";
@@ -16,6 +16,8 @@ const EmptyPage = () => {
     const [busStops, setBusStops] = useState([]);
     const [selectedBusStop, setSelectedBusStop] = useState(null);
     const [delayedObjects, setDelayedObjects] = useState([]);
+
+    const navigate = useNavigate();
 
     useEffect(() => {
         const eventSource = new EventSource("http://localhost:8080/notify-delay");
@@ -200,7 +202,7 @@ const EmptyPage = () => {
         plugins: {
             legend: { position: "top" },
             title: {
-                display: true,
+                display: false,
                 text: `Polynomial Graph\n${mapDetails?.root_function}`,
             },
         },
@@ -228,6 +230,13 @@ const EmptyPage = () => {
 
     return (
         <div>
+
+            <div>
+                <button onClick={() => navigate('/')}>Back to Map List</button>
+                <button onClick={handleRestart}>Restart GPS Tracking</button>
+                <button onClick={() => navigate('/admin-console')}>Go to Admin Console</button>
+            </div>
+
 
             {delayedObjects.length > 0 && (
                 <div className="notification">
@@ -258,23 +267,19 @@ const EmptyPage = () => {
             </div>
 
 
-            <div>
-                <h1>GPS Locations</h1>
-                <ul>
-                    <li><strong>Expected time:</strong> {expectedTime} <br/></li>
-                    {estimatedTime && Object.entries(estimatedTime).map(([busId, time]) => (
-                        <li key={busId}>
-                            <strong>Bus {busId} estimated time:</strong> {time.toFixed(2)} seconds<br/>
-                        </li>
-                    ))}
-                </ul>
-            </div>
-
-
-            <div>
-                <button onClick={handleRestart}>Restart GPS Tracking</button>
-            </div>
-
+            {expectedTime && (
+                <div>
+                    <h3>GPS Locations</h3>
+                    <ul>
+                        <li><strong>Expected time:</strong> {expectedTime} <br/></li>
+                        {estimatedTime && Object.entries(estimatedTime).map(([busId, time]) => (
+                            <li key={busId}>
+                                <strong>Bus {busId} estimated time:</strong> {time.toFixed(2)} seconds<br/>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
         </div>
     );
 };
