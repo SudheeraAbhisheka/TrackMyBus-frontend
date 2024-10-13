@@ -120,9 +120,9 @@ const AdminConsole = () => {
 
     return (
         <div>
-            <div className="top-bar">
-                <button onClick={() => navigate('/')}>Home</button>
-            </div>
+            <button className="home-button" onClick={() => navigate('/')}>
+                Home
+            </button>
 
             <div className="content">
                 <h2>Admin Console</h2>

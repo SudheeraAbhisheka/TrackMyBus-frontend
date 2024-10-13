@@ -6,7 +6,7 @@ import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
-const EmptyPage = () => {
+const Dashboard = () => {
     const { map_id } = useParams();
     const [mapDetails, setMapDetails] = useState(null);
     const [locations, setLocations] = useState({});
@@ -230,9 +230,9 @@ const EmptyPage = () => {
 
     return (
         <div>
-
             <div>
-                <button onClick={() => navigate('/')}>Back to Map List</button>
+                <button onClick={() => navigate('/')}>Home</button>
+                <button onClick={() => navigate('/map-list')}>Back to Map List</button>
                 <button onClick={handleRestart}>Restart GPS Tracking</button>
                 <button onClick={() => navigate('/admin-console')}>Go to Admin Console</button>
             </div>
@@ -284,4 +284,4 @@ const EmptyPage = () => {
     );
 };
 
-export default EmptyPage;
+export default Dashboard;
