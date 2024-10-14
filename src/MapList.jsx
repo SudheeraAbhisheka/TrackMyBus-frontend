@@ -17,34 +17,25 @@ const MapList = () => {
             });
     }, []);
 
-    const handleRestart = async () => {
-        try {
-            await axios.post('http://localhost:8080/restart');
-            window.location.reload();
-        } catch (error) {
-            console.error('Error restarting GPS tracking:', error);
-            alert('Failed to restart GPS tracking');
-        }
-    };
 
     return (
         <div>
-            <button className="home-button" onClick={() => navigate('/')}>
-                Home
-            </button>
-            <div>
-                <button onClick={handleRestart}>Restart GPS Tracking</button>
-            </div>
             <div>
                 <h1>Select a Map</h1>
                 <ul>
-                    {maps.map(map => (
-                        <li key={map.root_id}>
-                            <Link to={`/map/${map.root_id}`}>
-                                Map ID: {map.root_id}
-                            </Link>
-                        </li>
-                    ))}
+                    {maps.length === 0 ? (
+                        <p>No maps available</p>
+                    ) : (
+                        <ul>
+                            {maps.map(map => (
+                                <li key={map.root_id}>
+                                    <Link to={`/map/${map.root_id}`}>
+                                        Map ID: {map.root_id}
+                                    </Link>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
                 </ul>
             </div>
         </div>

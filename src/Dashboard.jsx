@@ -121,17 +121,6 @@ const Dashboard = () => {
         return () => clearInterval(intervalId); // Clean up the interval on unmount
     }, [selectedBusStop]); // Re-run the effect only when selectedBusStop changes
 
-
-    const handleRestart = async () => {
-        try {
-            await axios.post('http://localhost:8080/restart');
-            console.log('GPS tracking restarted');
-        } catch (error) {
-            console.error('Error restarting GPS tracking:', error);
-            alert('Failed to restart GPS tracking');
-        }
-    };
-
     const calculatePolynomial = (x) => {
         if (!mapDetails) return 0;
         try {
@@ -147,9 +136,10 @@ const Dashboard = () => {
         const yValues = xValues.map((x) => calculatePolynomial(x));
 
         const highlightedPoints = Object.values(locations).map((location) => {
+            const busId = location.busId;
             const highlightedX = location.x;
-            const highlightedY = calculatePolynomial(highlightedX);
-            return { highlightedX, highlightedY };
+            const highlightedY = location.y;
+            return { busId, highlightedX, highlightedY };
         });
 
         const highlightedBusStopY = calculatePolynomial(highlightedBusStopX);
@@ -165,14 +155,14 @@ const Dashboard = () => {
 
         const datasets = [
             {
-                label: mapDetails.root_function,
+                label: `root ${mapDetails.root_id}`,
                 data: yValues,
                 borderColor: "rgba(75, 192, 192, 1)",
                 borderWidth: 2,
                 fill: false,
             },
             ...highlightedPoints.map((point, index) => ({
-                label: `Highlight at x = ${point.highlightedX}`,
+                label: `${point.busId} at x = ${point.highlightedX}`,
                 data: xValues.map((x) => (x === point.highlightedX ? point.highlightedY : null)),
                 borderColor: colors[index % colors.length],
                 backgroundColor: colors[index % colors.length],
@@ -181,7 +171,7 @@ const Dashboard = () => {
                 showLine: false,
             })),
             {
-                label: `Highlight at x = ${highlightedBusStopX}`,
+                label: `Bus stop = ${highlightedBusStopX}`,
                 data: xValues.map((x) => (x === highlightedBusStopX ? highlightedBusStopY : null)),
                 borderColor: "rgb(48,214,33)",
                 backgroundColor: "rgb(48,214,33)",
@@ -229,59 +219,69 @@ const Dashboard = () => {
     }
 
     return (
-        <div>
-            <div>
-                <button onClick={() => navigate('/')}>Home</button>
-                <button onClick={() => navigate('/map-list')}>Back to Map List</button>
-                <button onClick={handleRestart}>Restart GPS Tracking</button>
-                <button onClick={() => navigate('/admin-console')}>Go to Admin Console</button>
-            </div>
+        <div style={{ display: "flex" }}>
+            {/* Left side content */}
+            <div style={{ flexGrow: 1 }}>
 
-
-            {delayedObjects.length > 0 && (
-                <div className="notification">
-                    <h3>Bus Delay Information</h3>
-                    {delayedObjects.map((obj, index) => (
-                        <div key={index}>
-                            <p>Session: {obj.session}</p>
-                            <p>Expected in Next: {obj.expectedInNext} seconds</p>
-                        </div>
-                    ))}
+                {/* Chart Section */}
+                <div style={{ width: "1000px", height: "600px" }}>
+                    <Line data={generateChartData()} options={chartOptions} />
                 </div>
-            )}
-
-            <div style={{width: "1000px", height: "600px"}}>
-                <Line data={generateChartData()} options={chartOptions}/>
             </div>
 
-            <div>
-                <label>Select Bus Stop: </label>
-                <select onChange={handleBusStopChange} value={selectedBusStop ? serializeId(selectedBusStop.id) : ''}>
-                    <option value="" disabled>Select a bus stop</option>
-                    {busStops.map((stop) => (
-                        <option key={serializeId(stop.id)} value={serializeId(stop.id)}>
-                            Bus Stop {stop.id.xcoordinate}
-                        </option>
-                    ))}
-                </select>
-            </div>
-
-
-            {expectedTime && (
+            {/* Right side content */}
+            <div style={{ width: "300px", marginLeft: "20px" }}>
                 <div>
-                    <h3>GPS Locations</h3>
-                    <ul>
-                        <li><strong>Expected time:</strong> {expectedTime} <br/></li>
-                        {estimatedTime && Object.entries(estimatedTime).map(([busId, time]) => (
-                            <li key={busId}>
-                                <strong>Bus {busId} estimated time:</strong> {time.toFixed(2)} seconds<br/>
-                            </li>
-                        ))}
-                    </ul>
+                    <button onClick={() => navigate('/map-list')}>Back to Map List</button>
                 </div>
-            )}
+
+                {/* Select Bus Stop Section */}
+                <div>
+                    <label>Select Bus Stop: </label>
+                    <select onChange={handleBusStopChange}
+                            value={selectedBusStop ? serializeId(selectedBusStop.id) : ''}>
+                        <option value="" disabled>Select a bus stop</option>
+                        <option value="none">None</option>
+                        {busStops.map((stop) => (
+                            <option key={serializeId(stop.id)} value={serializeId(stop.id)}>
+                                Bus Stop {stop.id.xcoordinate}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+
+                {/* GPS Locations Section */}
+                {selectedBusStop && selectedBusStop !== "none" && expectedTime && (
+                    <div>
+                        <h3>GPS Locations</h3>
+                        <ul>
+                            <li><strong>Expected time:</strong> {expectedTime} <br /></li>
+                            {estimatedTime && Object.entries(estimatedTime).map(([busId, time]) => (
+                                <li key={busId}>
+                                    <strong>Bus {busId} estimated time:</strong> {time.toFixed(2)} seconds<br />
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+
+                {/* Bus Delay Information Section */}
+                {delayedObjects.length > 0 && (
+                    <div className="notification">
+                        <h3>Bus Delay Information</h3>
+                        {delayedObjects.map((obj, index) => (
+                            <div key={index}>
+                                <p>Session: {obj.session}</p>
+                                <p>Expected in Next: {obj.expectedInNext} seconds</p>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
         </div>
     );
+
 };
 
 export default Dashboard;

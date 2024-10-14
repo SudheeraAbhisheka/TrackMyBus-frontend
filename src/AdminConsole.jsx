@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import axios from "axios";
 import {useNavigate} from "react-router-dom";
 
-const AdminConsole = () => {
+const AdminConsole = ({ handleRestart }) => {
     const [rootIdInput, setRootIdInput] = useState(""); // Input for root ID
     const [rootEntity, setRootEntity] = useState({
         root_id: "",
@@ -118,10 +118,27 @@ const AdminConsole = () => {
         setError(null); // Clear any previous errors
     };
 
+    const updateDefaultTestData = async () => {
+        try {
+            const response = await axios.post('http://localhost:8080/update-default-test-data');
+            const message = response.data;
+            alert(`Success: ${message}`);
+        } catch (error) {
+            console.error('Error updating test data:', error);
+            alert('Failed to update test data');
+        }
+    };
+
     return (
         <div>
-            <button className="home-button" onClick={() => navigate('/')}>
-                Home
+            <button onClick={async () => {
+                try {
+                    await updateDefaultTestData();
+                    await handleRestart();
+                } catch (error) {
+                    console.error('Error in updating and restarting:', error);
+                }
+            }}>Update default test data
             </button>
 
             <div className="content">
